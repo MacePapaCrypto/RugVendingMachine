@@ -72,6 +72,14 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
     }
 
     /*
+    * @dev Sets the fee amount in ftm per rug exchange
+    * @params _amount - ftm value to set the fee to, in wei
+    */
+    function setFee(uint _amount) external onlyOwner {
+        ftmFee = _amount;
+    }
+
+    /*
     * @dev Withdraw the token specified by the input token address from the contract to msg.sender
     * @param token - Address of token to withdraw, zero address withdraws native ftm
     */
