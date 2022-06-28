@@ -2,10 +2,12 @@
 
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contract/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contract/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract RugVendingMachine is IERC721Receiver, IERC721 {
+contract RugVendingMachine is IERC721Receiver, Ownable {
     //Map collection to amount needed for one ghostly
     /*
     * Rugged Collections Accepted At Launch
@@ -18,10 +20,14 @@ contract RugVendingMachine is IERC721Receiver, IERC721 {
     mapping(address => uint) public balanceOfRuggedNFTs;
     uint[] public ghostlyIDsInContract;
     address public immutable ghostlyCollectionAddress = 0x4EaB37d5C62fa3bff8F7A5FFce6a88cFC098749C;
-    
+    uint public ftmFee;
 
     //Constructor - Empty for now
-    constructor(){}
+    constructor(
+        uint _ftmFee
+    ) {
+        ftmFee = _ftmFee;
+    }
 
     //External Functions
     /*
@@ -29,22 +35,23 @@ contract RugVendingMachine is IERC721Receiver, IERC721 {
     * @params _collection - collection address of NFTs being exchanged
     * @params _tokenIDs - Array of tokenIDs owned by msg.sender
     */
-    function takeMyRugs(address _collection, uint[] calldata _tokenIDs) external {
+    function takeMyRugs(address _collection, uint[] calldata _tokenIDs) external payable {
         //Error handling
         require(ruggedCollections[_collection] > 0, "Must be an accepted collection");
         //Get length one time here, so _tokenIDs.length isn't called multiple times in the loop
         uint len = _tokenIDs.length;
         require(ghostlyIDsInContract.length >= len, "Not enough ghostlys in contract");
-        require(len == ruggedCollections[_collections], "Must submit required number of NFTs from the collection");
+        require(len == ruggedCollections[_collection], "Must submit required number of NFTs from the collection");
+        require(msg.value == ftmFee, "Did not pay fee");
         //Loop through the required NFTs to send them to the contract
         for(uint i = 0; i < len; i++) {
             //Transfer the tokens from msg.sender to this.address, i.e. to the contract
-            IERC721(collection).safeTransferFrom(msg.sender, this.address, _tokenIds[i]);
+            IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenIDs[i]);
             //Increment the count mapped to _collection by 1
             balanceOfRuggedNFTs[_collection]++;
         }
         //Send the ghostly that is preloaded into the contract
-        IERC721(ghostlyCollectionAddress).safeTransferFrom(this.address, msg.sender, _chooseGhostlyFromContract());
+        IERC721(ghostlyCollectionAddress).safeTransferFrom(address(this), msg.sender, _chooseGhostlyFromContract());
     }
 
     /*
@@ -56,7 +63,7 @@ contract RugVendingMachine is IERC721Receiver, IERC721 {
         uint len = _tokenIDs.length;
         //Probably need to add unchecked here
         for(uint i = 0; i < len; i++) {
-            IERC721(ghostlyCollectionAddress).safeTransferFrom(msg.sender, this.address, _tokenIDs[i]);
+            IERC721(ghostlyCollectionAddress).safeTransferFrom(msg.sender, address(this), _tokenIDs[i]);
             //We push the token ID into the array
             //Though its just an array, we are treating it as a stack
             //We will manage the tokenIDs to send based on what is at the top of the stack
@@ -64,9 +71,24 @@ contract RugVendingMachine is IERC721Receiver, IERC721 {
         }
     }
 
+    /*
+    * @dev Withdraw the token specified by the input token address from the contract to msg.sender
+    * @param token - Address of token to withdraw, zero address withdraws native ftm
+    */
+    function withdraw(address _token) external onlyOwner {
+        if(_token == address(0)) {
+            payable(msg.sender).transfer(address(this).balance);
+        }
+        else {
+            uint amount = IERC20(_token).balanceOf(address(this));
+            require(amount > 0, "Cannot withdraw nothing");
+            IERC20(_token).transfer(msg.sender, amount);
+        }
+    }
+
     //Make sure we can receive NFTs
-    function onERC721Received(address, uint256, bytes) public returns(bytes4) {
-        return ERC721_RECEIVED;
+    function onERC721Received(address, address, uint256, bytes calldata) public returns(bytes4) {
+        return this.onERC721Received.selector;
     }
 
     //Internal Functions
