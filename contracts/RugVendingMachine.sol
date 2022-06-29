@@ -46,12 +46,12 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
         //Loop through the required NFTs to send them to the contract
         for(uint i = 0; i < len; i++) {
             //Transfer the tokens from msg.sender to this.address, i.e. to the contract
-            IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenIDs[i]);
+            IERC721(_collection).transferFrom(msg.sender, address(this), _tokenIDs[i]);
             //Increment the count mapped to _collection by 1
             balanceOfRuggedNFTs[_collection]++;
         }
         //Send the ghostly that is preloaded into the contract
-        IERC721(ghostlyCollectionAddress).safeTransferFrom(address(this), msg.sender, _chooseGhostlyFromContract());
+        IERC721(ghostlyCollectionAddress).transferFrom(address(this), msg.sender, _chooseGhostlyFromContract());
     }
 
     /*
@@ -63,7 +63,7 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
         uint len = _tokenIDs.length;
         //Probably need to add unchecked here
         for(uint i = 0; i < len; i++) {
-            IERC721(ghostlyCollectionAddress).safeTransferFrom(msg.sender, address(this), _tokenIDs[i]);
+            IERC721(ghostlyCollectionAddress).transferFrom(msg.sender, address(this), _tokenIDs[i]);
             //We push the token ID into the array
             //Though its just an array, we are treating it as a stack
             //We will manage the tokenIDs to send based on what is at the top of the stack
@@ -102,7 +102,7 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
     function withdrawERC721(address _collection, uint[] calldata _tokenIDs) external onlyOwner {
         uint len = _tokenIDs.length;
         for(uint i = 0; i < len; i++) {
-            IERC721(_collection).safeTransferFrom(address(this), msg.sender, _tokenIDs[i]);
+            IERC721(_collection).transferFrom(address(this), msg.sender, _tokenIDs[i]);
             balanceOfRuggedNFTs[_collection]--;
         }
     }
