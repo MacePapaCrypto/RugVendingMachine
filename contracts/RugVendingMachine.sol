@@ -83,7 +83,7 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
     * @dev Withdraw the token specified by the input token address from the contract to msg.sender
     * @param token - Address of token to withdraw, zero address withdraws native ftm
     */
-    function withdraw(address _token) external onlyOwner {
+    function withdrawERC20(address _token) external onlyOwner {
         if(_token == address(0)) {
             payable(msg.sender).transfer(address(this).balance);
         }
@@ -91,6 +91,19 @@ contract RugVendingMachine is IERC721Receiver, Ownable {
             uint amount = IERC20(_token).balanceOf(address(this));
             require(amount > 0, "Cannot withdraw nothing");
             IERC20(_token).transfer(msg.sender, amount);
+        }
+    }
+
+    /*
+    * @dev Withdraw the ERC721 tokens from the contract to msg.sender
+    * @params _collection - collection address of the NFTs to be withdrawn
+    * @params _tokenIDs - Array of IDs of the tokens to be withdrawn
+    */
+    function withdrawERC721(address _collection, uint[] calldata _tokenIDs) external onlyOwner {
+        uint len = _tokenIDs.length;
+        for(uint i = 0; i < len; i++) {
+            IERC721(_collection).safeTransferFrom(address(this), msg.sender, _tokenIDs[i]);
+            balanceOfRuggedNFTs[_collection]--;
         }
     }
 
